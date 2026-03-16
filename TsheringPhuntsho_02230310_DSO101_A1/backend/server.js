@@ -1,53 +1,98 @@
 require("dotenv").config()
 
 const express = require("express")
-const mongoose = require("mongoose")
 const cors = require("cors")
+const { Sequelize, DataTypes } = require("sequelize")
 
 const app = express()
 
 app.use(cors())
 app.use(express.json())
 
-mongoose.connect(process.env.MONGO_URI)
-.then(()=> console.log("MongoDB Connected"))
-.catch(err => console.log(err))
+// Initialize Sequelize with PostgreSQL
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    dialect: "postgres"
+  }
+)
 
-const taskSchema = new mongoose.Schema({
-    title: String
+// Define Task model
+const Task = sequelize.define("Task", {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  title: {
+    type: DataTypes.STRING,
+    allowNull: false
+  }
+}, {
+  timestamps: true,
+  tableName: "tasks"
 })
 
-const Task = mongoose.model("Task", taskSchema)
+// Test database connection and sync
+sequelize.authenticate()
+  .then(() => {
+    console.log("PostgreSQL Connected")
+    return sequelize.sync()
+  })
+  .catch(err => console.log("Database connection error:", err))
 
 // CREATE
 app.post("/tasks", async (req,res)=>{
-    const task = new Task({title:req.body.title})
-    await task.save()
+  try {
+    const task = await Task.create({ title: req.body.title })
     res.json(task)
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
 })
 
 // READ
 app.get("/tasks", async (req,res)=>{
-    const tasks = await Task.find()
+  try {
+    const tasks = await Task.findAll()
     res.json(tasks)
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
 })
 
 // UPDATE
 app.put("/tasks/:id", async (req,res)=>{
-    const task = await Task.findByIdAndUpdate(
-        req.params.id,
-        {title:req.body.title},
-        {new:true}
-    )
+  try {
+    const task = await Task.findByPk(req.params.id)
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" })
+    }
+    await task.update({ title: req.body.title })
     res.json(task)
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
 })
 
 // DELETE
 app.delete("/tasks/:id", async (req,res)=>{
-    await Task.findByIdAndDelete(req.params.id)
-    res.json({message:"Deleted"})
+  try {
+    const task = await Task.findByPk(req.params.id)
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" })
+    }
+    await task.destroy()
+    res.json({ message: "Deleted" })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
 })
 
 app.listen(process.env.PORT, ()=>{
-    console.log("Server running on port", process.env.PORT)
+  console.log("Server running on port", process.env.PORT)
 })

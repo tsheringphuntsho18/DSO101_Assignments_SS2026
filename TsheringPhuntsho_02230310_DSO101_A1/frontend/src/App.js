@@ -9,9 +9,16 @@ function App() {
   const API = process.env.REACT_APP_API_URL
 
   const fetchTasks = async ()=>{
-    const res = await fetch(`${API}/tasks`)
-    const data = await res.json()
-    setTasks(data)
+    try {
+      const res = await fetch(`${API}/tasks`)
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+      const data = await res.json()
+      setTasks(data)
+    } catch (error) {
+      console.error("Error fetching tasks:", error)
+    }
   }
 
   useEffect(()=>{
@@ -20,34 +27,45 @@ function App() {
   },[])
 
   const addTask = async ()=>{
-    if(editId){
-      await fetch(`${API}/tasks/${editId}`,{
-        method:"PUT",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({title})
-      })
-      setEditId(null)
-    } else {
-      await fetch(`${API}/tasks`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({title})
-      })
+    try {
+      if(editId){
+        const res = await fetch(`${API}/tasks/${editId}`,{
+          method:"PUT",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({title})
+        })
+        if (!res.ok) throw new Error("Failed to update task")
+        setEditId(null)
+      } else {
+        const res = await fetch(`${API}/tasks`,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({title})
+        })
+        if (!res.ok) throw new Error("Failed to add task")
+      }
+      setTitle("")
+      fetchTasks()
+    } catch (error) {
+      console.error("Error adding/updating task:", error)
     }
-    setTitle("")
-    fetchTasks()
   }
 
   const deleteTask = async (id)=>{
-    await fetch(`${API}/tasks/${id}`,{
-      method:"DELETE"
-    })
-    fetchTasks()
+    try {
+      const res = await fetch(`${API}/tasks/${id}`,{
+        method:"DELETE"
+      })
+      if (!res.ok) throw new Error("Failed to delete task")
+      fetchTasks()
+    } catch (error) {
+      console.error("Error deleting task:", error)
+    }
   }
 
   const editTask = (task)=>{
     setTitle(task.title)
-    setEditId(task._id)
+    setEditId(task.id)
   }
 
   return (
@@ -69,11 +87,11 @@ function App() {
 
       <ul className="task-list">
         {tasks.map(task=>(
-          <li key={task._id} className="task-item">
+          <li key={task.id} className="task-item">
             <span className="task-title">{task.title}</span>
             <div className="item-actions">
               <button className="btn edit-btn" onClick={()=>editTask(task)}>Edit</button>
-              <button className="btn delete-btn" onClick={()=>deleteTask(task._id)}>Delete</button>
+              <button className="btn delete-btn" onClick={()=>deleteTask(task.id)}>Delete</button>
             </div>
           </li>
         ))}
