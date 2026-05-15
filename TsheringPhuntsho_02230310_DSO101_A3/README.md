@@ -25,7 +25,7 @@ The objective of this assignment is to configure a GitHub Actions workflow to au
 
 ### 1. Verify github repository setup
 
-![repo](/screenshots/verifiedgithubrepo.png)  
+![repo](screenshots/verifiedgithubrepo.png)  
 
 The github repository of the todolist app has package.json file in both frontend and backend, containing relevant script.  
 The repository is public.
